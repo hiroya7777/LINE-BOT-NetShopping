@@ -117,7 +117,7 @@ class LinebotsController < ApplicationController
             "style": "primary",
             "action": {
               "type": "uri",
-              "label": "Amazon商品ページへ",
+              "label": "楽天市場商品ページへ",
               "uri": url
             }
           }

@@ -26,44 +26,38 @@ end
 
 private
 
-def client
-  @client || = Line::Bot::Client.new do |config|
-    config.channel_secret = ENV['LINE_CHANNEL_SECRET']
-    config.channel_token = ENV['LINE_CHANEL_TOKEN']
+  def client
+    @client ||= Line::Bot::Client.new do |config|
+      config.channel_secret = ENV['LINE_CHANNEL_SECRET']
+      config.channel_token = ENV['LINE_CHANNEL_TOKEN']
+    end
   end
-end
 
-def search_and_create_messages(input)
-  Amazon::Ecs.debug = true
+  def search_and_create_message(input)
+    RakutenWebService.configuration do |c|
+      c.application_id = ENV['RAKUTEN_APPID']
+      c.affiliate_id = ENV['RAKUTEN_AFID']
+    end
+    # 楽天の商品検索APIで画像がある商品の中で、入力値で検索して上から3件を取得する
+    # 商品検索+ランキングでの取得はできないため標準の並び順で上から3件取得する
+    res = RakutenWebService::Ichiba::Item.search(keyword: input, hits: 3, imageFlag: 1)
+    items = []
+    # 取得したデータを使いやすいように配列に格納し直す
+    items = res.map{|item| item}
+    make_reply_content(items)
+  end
 
-  res1 = Amazon::Ecs.item_search(
-    input,
-    search_index: 'All',
-    response_group: 'BrowseNodes',
-    country: 'jp'
-  )
-  browse_node_no = res1.items.first.get('BrowseNodes/BrowseNode/BrowseNodeId')
-  res2 = Amazon::Ecs.item_search(
-    input,
-    browse_node: browse_node_no,
-    response_group: 'ItemAttributes, Images, Offers',
-    country: 'jp',
-    sort: 'salesrank'
-  )
-  make_reply_content(res2)
-end
-
-def make_reply_content(res2)
+  def make_reply_content(items)
     {
-      "type": "flex",
-      "altText": "This is a Flex Message",
+      "type": 'flex',
+      "altText": 'This is a Flex Message',
       "contents":
       {
-        "type": "carousel",
+        "type": 'carousel',
         "contents": [
-          make_part(res2.items[0], 1),
-          make_part(res2.items[1], 2),
-          make_part(res2.items[2], 3)
+          make_part(items[0]),
+          make_part(items[1]),
+          make_part(items[2])
         ]
       }
     }
@@ -127,7 +121,7 @@ def make_part(item, rank)
         "style": "primary",
         "action": {
           "type": "url",
-          "label": "Amazon商品ページへ",
+          "label": "楽天商品ページへ",
           "url": url
                    }
       }
